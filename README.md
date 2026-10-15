@@ -6,6 +6,12 @@ You can create a **session** and invite friends: their Champs show up next to yo
 
 Privacy: only the tap **count** is shared. Keys are never recorded or sent.
 
+## Install
+
+Download the latest version from **[Releases](https://github.com/franck-madbox/bongo-champs/releases/latest)**:
+`BongoChamps-<version>-universal.dmg` (Mac, Intel + Apple Silicon) or `BongoChamps-Setup-<version>.exe` (Windows).
+Install once: next versions download in the background and a green **Update** button restarts the app on them.
+
 ## Use it
 
 - Right-click your Champ (or use the tray/menu-bar icon) to open the menu: create/join a session, copy an invite, settings.
@@ -57,6 +63,14 @@ Free plan quota: clients send at most one update every 500 ms while typing (`FLU
 ```bash
 cd server && docker build -t bongo-champs-server . && docker run -p 8787:8787 bongo-champs-server
 ```
+
+## Release a new version
+
+1. Bump `version` in `package.json`, commit and push.
+2. `gh release create v<version> --target main --title "Bongo Champs <version>" --notes "..."`
+3. `GH_TOKEN=$(gh auth token) npx electron-builder --mac --win --publish always`
+
+Installed apps pick it up within 4 hours (or at next launch) through `latest-mac.yml` / `latest.yml`.
 
 ## Build installers
 
