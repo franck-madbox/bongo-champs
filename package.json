@@ -1,0 +1,100 @@
+{
+  "name": "bongo-champs",
+  "productName": "Bongo Champs",
+  "version": "1.3.0",
+  "description": "Bongo Cat-like desktop buddy with a Champ, and shared sessions to see your Madbox friends tapping.",
+  "main": "src/main.js",
+  "author": "Madbox",
+  "private": true,
+  "bongoServerUrl": "wss://bongo-champs.bongo-champs-cloudflare.workers.dev",
+  "scripts": {
+    "start": "electron .",
+    "server": "node server/server.js",
+    "dist:mac": "electron-builder --mac",
+    "dist:win": "electron-builder --win",
+    "dist": "electron-builder --mac --win"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "uiohook-napi": "^1.5.5",
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "electron": "^44.7.2",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.madbox.bongochamps",
+    "productName": "Bongo Champs",
+    "npmRebuild": false,
+    "afterPack": "build/sign-mac.js",
+    "files": [
+      "src/**/*",
+      "package.json",
+      "!node_modules/uiohook-napi/build/**"
+    ],
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "protocols": [
+      {
+        "name": "Bongo Champs",
+        "schemes": [
+          "bongochamps"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.entertainment",
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "universal"
+          ]
+        }
+      ],
+      "x64ArchFiles": "**/uiohook-napi/prebuilds/**",
+      "identity": null,
+      "hardenedRuntime": false,
+      "extendInfo": {
+        "LSUIElement": true
+      }
+    },
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "franck-madbox",
+        "repo": "bongo-champs",
+        "releaseType": "release"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/franck-madbox/bongo-champs.git"
+  }
+}

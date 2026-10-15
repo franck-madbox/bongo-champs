@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+    <title>Bongo Champs</title>
+    <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+    <header>
+        <div id="avatar" class="avatar"></div>
+        <div>
+            <h1>Bongo Champs</h1>
+            <div id="total" class="total">0 taps</div>
+        </div>
+    </header>
+
+    <button id="update-banner" class="update-banner hidden">⬆ Version <span id="update-version"></span> is ready: restart to update</button>
+
+    <!-- Shared by the hat and Moji machines. -->
+    <div class="capsule-bar">
+        <div class="capsule-info">
+            <div id="tokens" class="tokens">🎁 0 capsules</div>
+            <div id="next-token" class="hint"></div>
+        </div>
+        <div class="points">
+            <div class="points-label"><span id="points">0</span> / <span id="points-cost">2,500</span> taps</div>
+            <div class="progress"><div id="points-fill" class="progress-fill"></div></div>
+        </div>
+        <button id="buy-capsule" title="Spend your taps for one capsule">Buy 🎁</button>
+    </div>
+
+    <nav class="tabs">
+        <button data-tab="champ">Champ</button>
+        <button data-tab="hats">Hats</button>
+        <button data-tab="mojis">Mojis</button>
+        <button data-tab="session">Session</button>
+    </nav>
+
+    <section class="tab" data-tab="champ">
+        <div class="champ-editor">
+            <div id="champ-preview" class="champ-preview"></div>
+            <div class="champ-controls">
+                <label class="field">Name <input id="name" maxlength="20"></label>
+                <div class="field">
+                    <div class="field-head">Color <button id="hue-reset" class="link">Original</button></div>
+                    <input id="hue" type="range" min="0" max="360" step="1">
+                </div>
+                <div class="field">
+                    Size
+                    <div id="size" class="segmented">
+                        <button data-size="small">S</button>
+                        <button data-size="medium">M</button>
+                        <button data-size="large">L</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <button id="save" class="primary wide">Save</button>
+    </section>
+
+    <section class="tab" data-tab="hats">
+        <div class="machine" data-collection="hats">
+            <div class="reveal">
+                <div class="capsule"></div>
+                <div class="reveal-item hidden">
+                    <img alt="">
+                    <div class="reveal-name"></div>
+                    <div class="rarity"></div>
+                </div>
+            </div>
+            <button class="primary wide open">Open a capsule</button>
+        </div>
+        <div class="collection-head"><span>Collection</span><span id="hats-progress"></span></div>
+        <div id="hats-grid" class="collection hats"></div>
+        <div class="hint">Click a hat you own to wear it. Friends see it too.</div>
+    </section>
+
+    <section class="tab" data-tab="mojis">
+        <div class="machine" data-collection="mojis">
+            <div class="reveal">
+                <div class="capsule moji-capsule"></div>
+                <div class="reveal-item hidden">
+                    <img alt="">
+                    <div class="reveal-name"></div>
+                    <div class="rarity"></div>
+                </div>
+            </div>
+            <button class="primary wide open">Open a capsule</button>
+        </div>
+        <div class="collection-head"><span>Collection</span><span id="mojis-progress"></span></div>
+        <div id="mojis-grid" class="collection mojis"></div>
+        <div class="hint">Your Mojis are in the emoji bar: click your Champ to send one.</div>
+    </section>
+
+    <section class="tab" data-tab="session">
+        <div id="in-session" class="hidden">
+            <div class="session-code"><span id="code"></span><span id="state" class="state"></span></div>
+            <div id="peers" class="peers"></div>
+            <div class="buttons">
+                <button id="copy" class="primary">Copy invite</button>
+                <button id="leave">Leave</button>
+            </div>
+        </div>
+        <div id="no-session">
+            <button id="create" class="primary wide">Create a session</button>
+            <div class="join">
+                <input id="join-code" maxlength="8" placeholder="Friend's code" autocomplete="off" spellcheck="false">
+                <button id="join">Join</button>
+            </div>
+        </div>
+        <div id="error" class="error hidden"></div>
+        <details>
+            <summary>Advanced</summary>
+            <label>Server <input id="server" spellcheck="false"></label>
+        </details>
+        <div class="privacy">Only your tap count is shared. Keys are never recorded nor sent.</div>
+        <div id="app-version" class="privacy"></div>
+    </section>
+
+    <template id="champ-template">
+        <div class="champ">
+            <div class="count">0</div>
+            <div class="stage">
+                <div class="part head"></div>
+                <div class="part hat hidden"></div>
+                <div class="part arm left up"></div>
+                <div class="part arm right up"></div>
+                <div class="emoji-bubble hidden"></div>
+            </div>
+            <div class="name"></div>
+        </div>
+    </template>
+
+    <script src="champ.js"></script>
+    <script src="settings.js"></script>
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "bongo-champs-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WebSocket relay for Bongo Champs sessions",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  }
+}

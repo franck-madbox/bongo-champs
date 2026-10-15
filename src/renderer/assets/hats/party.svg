@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 130 110" width="130" height="110"><g stroke="#111" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"><defs><clipPath id="c"><path d="M32 95 L67 18 L98 95 Z"/></clipPath></defs>
+<path d="M32 95 L67 18 L98 95 Z" fill="#ff6fa8"/>
+<g clip-path="url(#c)" stroke="none" fill="#ffd23d"><path d="M20 80 L110 50 L110 60 L20 90Z"/><path d="M20 52 L110 22 L110 32 L20 62Z"/></g>
+<path d="M32 95 L67 18 L98 95 Z" fill="none"/>
+<circle cx="67" cy="17" r="9" fill="#ffd23d"/></g></svg>

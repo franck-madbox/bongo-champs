@@ -1,0 +1,489 @@
+@import url("overlay.css");
+
+html, body {
+    background: #1d2230;
+    color: #f2f4f8;
+    cursor: default;
+    overflow: auto;
+}
+
+body {
+    padding: 14px 18px;
+    font-size: 13px;
+    user-select: auto;
+}
+
+header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+h1 {
+    margin: 0;
+    font-size: 20px;
+}
+
+.total {
+    color: #ff9d2e;
+    font-weight: 800;
+}
+
+/* ---------- Champ previews (reuse the overlay rig) ---------- */
+
+.avatar {
+    display: flex;
+    align-items: flex-end;
+    width: 96px;
+    height: 74px;
+}
+
+.avatar .champ {
+    zoom: 0.36;
+}
+
+.avatar .count,
+.avatar .name,
+.champ-preview .count {
+    display: none;
+}
+
+.champ-editor {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.champ-preview {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    flex: 0 0 170px;
+    height: 170px;
+    border-radius: 10px;
+    background: radial-gradient(circle at 50% 70%, #3a4258 0%, #262c3d 70%);
+}
+
+.champ-preview .champ {
+    zoom: 0.68;
+}
+
+.champ-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    color: #9aa3b5;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.field-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* ---------- Capsule bar ---------- */
+
+.capsule-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background: #262c3d;
+}
+
+.tokens {
+    font-size: 15px;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.points {
+    flex: 1;
+    min-width: 0;
+}
+
+.points-label {
+    font-size: 11px;
+    color: #9aa3b5;
+    margin-bottom: 4px;
+}
+
+.progress {
+    height: 7px;
+    border-radius: 4px;
+    background: #141824;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    width: 0;
+    background: linear-gradient(90deg, #ff9d2e, #ffd23d);
+    transition: width 0.3s;
+}
+
+/* ---------- Tabs ---------- */
+
+.tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 10px;
+    padding: 3px;
+    border-radius: 9px;
+    background: #141824;
+}
+
+.tabs button {
+    flex: 1;
+    background: transparent;
+    padding: 7px 0;
+}
+
+.tabs button.active {
+    background: #3a4258;
+}
+
+section.tab {
+    background: #262c3d;
+    border-radius: 10px;
+    padding: 12px;
+}
+
+/* ---------- Form controls ---------- */
+
+details {
+    margin-top: 14px;
+}
+
+summary {
+    cursor: pointer;
+    color: #9aa3b5;
+}
+
+label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+details label {
+    margin-top: 10px;
+}
+
+label input {
+    flex: 1;
+}
+
+.field input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+input {
+    background: #141824;
+    border: 1px solid #3a4258;
+    border-radius: 6px;
+    padding: 7px 9px;
+    color: #f2f4f8;
+    font-size: 13px;
+}
+
+/* Hue slider shows the colors it picks. */
+input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 12px;
+    padding: 0;
+    border: 2px solid #111;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #f2f4f8 0 4%, hsl(0, 85%, 72%) 4%, hsl(60, 85%, 72%), hsl(120, 85%, 72%), hsl(180, 85%, 72%), hsl(240, 85%, 72%), hsl(300, 85%, 72%), hsl(360, 85%, 72%));
+}
+
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 3px solid #111;
+    border-radius: 50%;
+    background: #fff;
+    cursor: pointer;
+}
+
+button {
+    background: #3a4258;
+    color: #f2f4f8;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.15);
+}
+
+button:disabled {
+    opacity: 0.45;
+    cursor: default;
+    filter: none;
+}
+
+button.primary {
+    background: #ff9d2e;
+    color: #111;
+}
+
+button.wide {
+    width: 100%;
+}
+
+button.link {
+    padding: 0;
+    background: none;
+    color: #ff9d2e;
+    font-size: 11px;
+}
+
+.segmented {
+    display: flex;
+    background: #141824;
+    border-radius: 8px;
+    padding: 3px;
+    gap: 3px;
+}
+
+.segmented button {
+    flex: 1;
+    background: transparent;
+    padding: 5px 0;
+}
+
+.segmented button.active {
+    background: #ff9d2e;
+    color: #111;
+}
+
+/* ---------- Session ---------- */
+
+.buttons, .join {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.join input {
+    flex: 1;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.session-code {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+}
+
+#code {
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: 4px;
+}
+
+.state {
+    color: #9aa3b5;
+}
+
+.peers {
+    margin-top: 6px;
+    color: #c8cfdd;
+}
+
+.hint, .privacy {
+    color: #7d869a;
+    font-size: 11px;
+}
+
+.privacy {
+    margin-top: 12px;
+    text-align: center;
+}
+
+.error {
+    margin-top: 8px;
+    color: #ff6b6b;
+}
+
+/* ---------- Capsule machines ---------- */
+
+.reveal {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 120px;
+    margin-bottom: 10px;
+    border-radius: 10px;
+    background: radial-gradient(circle, #343c54 0%, #1d2230 75%);
+}
+
+/* Two-tone capsule toy: top half colored, bottom half white. */
+.capsule {
+    width: 70px;
+    height: 70px;
+    border: 4px solid #111;
+    border-radius: 50%;
+    background: linear-gradient(180deg, #ff9d2e 0 50%, #f2f4f8 50% 100%);
+}
+
+.capsule.moji-capsule {
+    background: linear-gradient(180deg, #4ab8f2 0 50%, #f2f4f8 50% 100%);
+}
+
+.capsule.shaking {
+    animation: capsule-shake 0.35s ease-in-out infinite;
+}
+
+@keyframes capsule-shake {
+    0%, 100% { transform: rotate(0) scale(1); }
+    25% { transform: rotate(-14deg) scale(1.05); }
+    75% { transform: rotate(14deg) scale(1.05); }
+}
+
+.reveal-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: reveal-pop 0.45s cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+
+.reveal-item.hidden {
+    display: none;
+}
+
+.reveal-item img {
+    width: 96px;
+    height: 82px;
+    object-fit: contain;
+}
+
+.reveal-name {
+    font-size: 15px;
+    font-weight: 800;
+}
+
+@keyframes reveal-pop {
+    0% { transform: scale(0.2); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.reveal-item.epic img { filter: drop-shadow(0 0 10px #a46bff); }
+.reveal-item.legendary img { filter: drop-shadow(0 0 14px #ffcc33); }
+
+/* Rarity colors, shared by labels and collection tiles. */
+.rarity { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px; color: var(--rarity); }
+/* Doubled selectors so tiles override their default border color. */
+.common, .tile.common { --rarity: #9aa3b5; }
+.rare, .tile.rare { --rarity: #4a90e2; }
+.epic, .tile.epic { --rarity: #a46bff; }
+.legendary, .tile.legendary { --rarity: #ffcc33; }
+.reveal-item.moji .rarity { color: #4ab8f2; }
+
+/* ---------- Collections ---------- */
+
+.collection-head {
+    display: flex;
+    justify-content: space-between;
+    margin: 12px 0 6px;
+    color: #9aa3b5;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.collection {
+    display: grid;
+    gap: 5px;
+    margin-bottom: 8px;
+    max-height: 196px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.collection.hats {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.collection.mojis {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+}
+
+.tile {
+    --rarity: #3a4258;
+    aspect-ratio: 1;
+    padding: 3px;
+    border: 2px solid var(--rarity);
+    border-radius: 8px;
+    background: #141824;
+    color: #9aa3b5;
+    font-size: 10px;
+}
+
+.tile:disabled {
+    opacity: 1;
+}
+
+.tile img {
+    display: block;
+    min-width: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.tile.locked {
+    font-size: 16px;
+    font-weight: 900;
+    opacity: 0.55;
+}
+
+.tile.worn {
+    background: #ff9d2e33;
+    box-shadow: 0 0 0 2px #ff9d2e;
+}
+
+/* Dark scrollbars to match the window. */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    border-radius: 4px;
+    background: #3a4258;
+}
+
+.update-banner {
+    width: 100%;
+    margin-bottom: 10px;
+    background: #3ddc84;
+    color: #111;
+}
