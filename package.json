@@ -82,7 +82,8 @@
     },
     "nsis": {
       "oneClick": true,
-      "perMachine": false
+      "perMachine": false,
+      "artifactName": "BongoChamps-Setup-${version}.${ext}"
     },
     "publish": [
       {
@@ -91,7 +92,8 @@
         "repo": "bongo-champs",
         "releaseType": "release"
       }
-    ]
+    ],
+    "artifactName": "BongoChamps-${version}-${arch}.${ext}"
   },
   "repository": {
     "type": "git",
