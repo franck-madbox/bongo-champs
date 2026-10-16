@@ -4,7 +4,8 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { raceClock } from '../../src/race-time.js';
-import { applyRaceMessage, removeRacer, standingsMessage, serializeBoard, deserializeBoard } from '../../src/race-board.js';
+import { applyRaceMessage, removeRacer, standingsMessage, summarizeDay, serializeBoard, deserializeBoard } from '../../src/race-board.js';
+import { ADMIN_PAGE } from './admin-page.js';
 
 const MAX_PLAYERS_PER_ROOM = 16;
 const MAX_TAPS_PER_UPDATE = 100;
@@ -19,6 +20,8 @@ const EMOJI_COOLDOWN_MS = 1500;
 // clients re-send their score regularly, so a restart loses nothing.
 const RACE_SAVE_MS = 60 * 1000;
 const RACE_BROADCAST_MS = 2000;
+// Admin stats: days kept in the history.
+const HISTORY_DAYS = 60;
 
 export default {
     async fetch(request, env) {
@@ -26,6 +29,20 @@ export default {
 
         if (url.pathname === '/health') {
             return Response.json({ ok: true });
+        }
+
+        // Admin dashboard: password-protected (HTTP Basic auth, password = ADMIN_KEY secret, any user name).
+        if (url.pathname === '/admin' || url.pathname === '/admin/stats') {
+            const denied = await checkAdmin(request, env);
+            if (denied) {
+                return denied;
+            }
+            const headers = { 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' };
+            if (url.pathname === '/admin') {
+                return new Response(ADMIN_PAGE, { headers: { ...headers, 'Content-Type': 'text/html; charset=utf-8' } });
+            }
+            const stats = await env.RACE.get(env.RACE.idFromName('global')).fetch('https://race/stats');
+            return new Response(stats.body, { headers: { ...headers, 'Content-Type': 'application/json' } });
         }
 
         if (url.pathname === '/race') {
@@ -221,6 +238,33 @@ export class Room extends DurableObject {
     }
 }
 
+/** null when the request carries the admin password, otherwise the response to send back. */
+async function checkAdmin(request, env) {
+    if (!env.ADMIN_KEY) {
+        return new Response('Admin is not configured', { status: 503 });
+    }
+    const header = request.headers.get('Authorization') || '';
+    let password = '';
+    if (header.startsWith('Basic ')) {
+        try {
+            password = atob(header.slice(6)).split(':').slice(1).join(':');
+        } catch {
+            password = '';
+        }
+    }
+    const given = new TextEncoder().encode(password);
+    const expected = new TextEncoder().encode(env.ADMIN_KEY);
+    // Constant-time comparison so the password can't be guessed from response timings.
+    const ok = given.byteLength === expected.byteLength && crypto.subtle.timingSafeEqual(given, expected);
+    if (ok) {
+        return null;
+    }
+    return new Response('Password required', {
+        status: 401,
+        headers: { 'WWW-Authenticate': 'Basic realm="Bongo Champs admin", charset="UTF-8"' },
+    });
+}
+
 /** Public id broadcast in standings: a hash, so the private id stays secret. Same as server/server.js. */
 async function publicRaceId(privateId) {
     const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(privateId));
@@ -234,17 +278,63 @@ export class Race extends DurableObject {
         this.board = deserializeBoard(null);
         this.lastBroadcast = 0;
         this.broadcastTimer = null;
+        // Most apps connected at the same time today, and the daily summaries of past days (admin stats).
+        this.peak = { day: null, online: 0 };
+        this.history = [];
         ctx.blockConcurrencyWhile(async () => {
             this.board = deserializeBoard(await ctx.storage.get('board'));
+            this.peak = (await ctx.storage.get('peak')) || this.peak;
+            this.history = (await ctx.storage.get('history')) || [];
         });
     }
 
-    async fetch() {
+    async fetch(request) {
+        if (new URL(request.url).pathname === '/stats') {
+            await this.rollDay(raceClock());
+            return Response.json(this.stats());
+        }
         const pair = new WebSocketPair();
         const [client, server] = Object.values(pair);
         this.ctx.acceptWebSocket(server);
         server.serializeAttachment({ privateId: null, publicId: null });
+        // Peak of simultaneous players today (saved with the board).
+        const clock = raceClock();
+        await this.rollDay(clock);
+        const online = this.ctx.getWebSockets().length;
+        if (this.peak.day !== clock.day || online > this.peak.online) {
+            this.peak = { day: clock.day, online: Math.max(online, this.peak.day === clock.day ? this.peak.online : 0) };
+            await this.scheduleSave();
+        }
         return new Response(null, { status: 101, webSocket: client });
+    }
+
+    /** On the first event of a new Paris day: archives yesterday's summary, starts a fresh board. */
+    async rollDay(clock) {
+        if (!this.board.day || this.board.day === clock.day) {
+            return;
+        }
+        const summary = summarizeDay(this.board);
+        summary.peakOnline = this.peak.day === this.board.day ? this.peak.online : 0;
+        this.history = [summary, ...this.history.filter((day) => day.day !== summary.day)].slice(0, HISTORY_DAYS);
+        this.board = deserializeBoard({ day: clock.day, entries: {} });
+        this.peak = { day: clock.day, online: this.ctx.getWebSockets().length };
+        await this.ctx.storage.put({ history: this.history, board: serializeBoard(this.board), peak: this.peak });
+    }
+
+    /** Counts only: no ids, no per-player data beyond the public top 3. */
+    stats() {
+        const clock = raceClock();
+        const today = this.board.day === clock.day ? summarizeDay(this.board) : { day: clock.day, players: 0, taps: 0, versions: {} };
+        const standings = standingsMessage(this.board, clock).standings;
+        const online = this.ctx.getWebSockets().length;
+        // Connections opened before a deploy are not in the stored peak: never show a peak below "online now".
+        const peakOnline = Math.max(online, this.peak.day === clock.day ? this.peak.online : 0);
+        return {
+            now: { online, raceOpen: clock.open, msUntilEnd: clock.msUntilEnd },
+            today: { ...today, peakOnline },
+            top: standings.slice(0, 3).map(({ name, daily }) => ({ name, daily })),
+            history: this.history,
+        };
     }
 
     send(ws, message) {
@@ -282,7 +372,7 @@ export class Race extends DurableObject {
     }
 
     async alarm() {
-        await this.ctx.storage.put('board', serializeBoard(this.board));
+        await this.ctx.storage.put({ board: serializeBoard(this.board), peak: this.peak });
     }
 
     async webSocketMessage(ws, raw) {
@@ -293,6 +383,7 @@ export class Race extends DurableObject {
             return;
         }
         const clock = raceClock();
+        await this.rollDay(clock);
         if (msg.t === 'race-get') {
             this.send(ws, standingsMessage(this.board, clock));
             return;

@@ -62,6 +62,13 @@ Installed apps follow the built-in URL unless a user typed a custom one in Setti
 
 Free plan quota: clients send at most one update every 500 ms while typing (`FLUSH_INTERVAL_MS` in `src/session-client.js`).
 
+### Admin dashboard
+
+`https://bongo-champs.bongo-champs-cloudflare.workers.dev/admin`: players online now, today's peak of simultaneous
+players, players and taps today (race taps, midnight to 18:00 Paris), top 3, app versions in use, 60-day history.
+Protected by HTTP Basic auth: any user name, password = the `ADMIN_KEY` Worker secret (kept by the admin, never in
+this repo). Change it with `cd cloudflare && npx wrangler secret put ADMIN_KEY`. Only counts are exposed.
+
 ### Local / self-hosted: Node
 
 `server/` is the same relay for Node or Docker (exposes `/health`). `npm run server` starts it on `ws://localhost:8787`.

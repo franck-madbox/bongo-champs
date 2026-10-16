@@ -5,3 +5,4 @@ cloudflare/node_modules/
 cloudflare/.wrangler/
 .claude/
 .DS_Store
+cloudflare/.dev.vars

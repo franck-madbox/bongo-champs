@@ -3,6 +3,9 @@
 // update someone else's score by reusing their id.
 
 const HAT_ID_REGEX = /^[a-z0-9-]{1,32}$/;
+const VERSION_REGEX = /^\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+// Apps that don't report their version (1.4.1 and older).
+const UNKNOWN_VERSION = '<= 1.4.1';
 // Sanity cap on a day's taps (a very fast typist all day is far below this).
 const MAX_DAILY_TAPS = 500000;
 // Standings sent to clients: they display the top few plus themselves.
@@ -23,6 +26,9 @@ function sanitizeProfile(msg) {
     }
     if ('hat' in msg) {
         profile.hat = typeof msg.hat === 'string' && HAT_ID_REGEX.test(msg.hat) ? msg.hat : null;
+    }
+    if (typeof msg.version === 'string' && VERSION_REGEX.test(msg.version)) {
+        profile.version = msg.version;
     }
     return profile;
 }
@@ -62,8 +68,21 @@ function standingsMessage(board, clock) {
         day: clock.day,
         open: clock.open,
         total: entries.length,
-        standings: entries.slice(0, STANDINGS_SIZE),
+        // Only public fields are broadcast (the app version stays on the server, for admin stats).
+        standings: entries.slice(0, STANDINGS_SIZE).map(({ id, name, hue, hat, daily }) => ({ id, name, hue, hat, daily })),
     };
+}
+
+/** Admin summary of a day: players, total taps and app versions (counts only). */
+function summarizeDay(board) {
+    let taps = 0;
+    const versions = {};
+    for (const entry of board.entries.values()) {
+        taps += entry.daily;
+        const version = entry.version || UNKNOWN_VERSION;
+        versions[version] = (versions[version] || 0) + 1;
+    }
+    return { day: board.day, players: board.entries.size, taps, versions };
 }
 
 /** Plain-object form for storage (Cloudflare Durable Object storage). */
@@ -75,4 +94,4 @@ function deserializeBoard(data) {
     return data ? { day: data.day, entries: new Map(Object.entries(data.entries || {})) } : createBoard();
 }
 
-module.exports = { createBoard, applyRaceMessage, removeRacer, standingsMessage, serializeBoard, deserializeBoard };
+module.exports = { createBoard, applyRaceMessage, removeRacer, standingsMessage, summarizeDay, serializeBoard, deserializeBoard };

@@ -4,7 +4,7 @@
 
 const path = require('path');
 const crypto = require('crypto');
-const { BrowserWindow, screen } = require('electron');
+const { app, BrowserWindow, screen } = require('electron');
 const { RaceClient } = require('./race-client');
 const { raceClock } = require('./race-time');
 
@@ -62,7 +62,16 @@ class DailyRace {
 
     entry() {
         const state = this.store.get();
-        return { id: state.id, name: state.name, hue: state.hue, hat: state.hat, daily: this.myDaily(), day: raceClock().day };
+        // The app version only feeds the admin stats (versions in use); it is never shown to other players.
+        return {
+            id: state.id,
+            name: state.name,
+            hue: state.hue,
+            hat: state.hat,
+            daily: this.myDaily(),
+            day: raceClock().day,
+            version: app.getVersion(),
+        };
     }
 
     /** Called on every tap: counts until 18:00 Paris time. */
