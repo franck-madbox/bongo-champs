@@ -679,7 +679,21 @@ function registerIpc() {
         }
     });
 
-    ipcMain.on('overlay-drag-end', (event) => saveWindowPosition(BrowserWindow.fromWebContents(event.sender)));
+    ipcMain.on('overlay-drag-end', (event) => {
+        const win = BrowserWindow.fromWebContents(event.sender);
+        // The race strip snaps to the nearest screen edge instead of staying where it was dropped.
+        if (dailyRace.ownsWindow(win)) {
+            dailyRace.dockAfterDrag();
+        } else {
+            saveWindowPosition(win);
+        }
+    });
+
+    ipcMain.on('race-interactive', (event, interactive) => {
+        if (dailyRace.ownsWindow(BrowserWindow.fromWebContents(event.sender))) {
+            dailyRace.setInteractive(Boolean(interactive));
+        }
+    });
 
     ipcMain.on('overlay-menu', (event) => {
         Menu.buildFromTemplate(buildMenuTemplate()).popup({ window: BrowserWindow.fromWebContents(event.sender) });

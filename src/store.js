@@ -30,6 +30,8 @@ function defaultState() {
         // Daily race: today's taps (Paris day), strip visibility, and the last podium shown / reward claimed.
         daily: { day: null, count: 0 },
         raceVisible: true,
+        // Race strip dock: screen edge ('left' | 'right' | 'top' | 'bottom') and the strip's center point.
+        raceDock: null,
         podiumShownDay: null,
         raceClaimedDay: null,
         // Only set when the user typed another server: otherwise the built-in default is used,

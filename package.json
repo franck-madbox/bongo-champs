@@ -1,7 +1,7 @@
 {
   "name": "bongo-champs",
   "productName": "Bongo Champs",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Bongo Cat-like desktop buddy with a Champ, and shared sessions to see your Madbox friends tapping.",
   "main": "src/main.js",
   "author": "Madbox",

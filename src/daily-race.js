@@ -1,5 +1,6 @@
-// Daily race: today's taps (Paris time, reset at midnight, frozen at 18:00), the race strip on the right edge
-// of the screen, the 18:00 podium window and the capsule rewards for the top 3.
+// Daily race: today's taps (Paris time, reset at midnight, frozen at 18:00), the race strip docked on a screen
+// edge (draggable, vertical on left/right edges, horizontal on top/bottom), the 18:00 podium window and the
+// capsule rewards for the top 3.
 
 const path = require('path');
 const crypto = require('crypto');
@@ -7,7 +8,9 @@ const { BrowserWindow, screen } = require('electron');
 const { RaceClient } = require('./race-client');
 const { raceClock } = require('./race-time');
 
-const STRIP_WIDTH = 132;
+// Strip size: its thickness across the edge, and its length as a share of that edge.
+const STRIP_THICKNESS = { vertical: 132, horizontal: 150 };
+const STRIP_LENGTH_RATIO = 0.7;
 const PODIUM_SIZE = { width: 560, height: 440 };
 const PODIUM_VISIBLE_MS = 15 * 1000;
 // Capsules won on the podium: 1st, 2nd, 3rd.
@@ -167,17 +170,83 @@ class DailyRace {
     }
 
     createStrip() {
-        const workArea = screen.getPrimaryDisplay().workArea;
-        this.stripWindow = createOverlayWindow({
-            x: workArea.x + workArea.width - STRIP_WIDTH,
-            y: workArea.y,
-            width: STRIP_WIDTH,
-            height: workArea.height,
-        }, 'race.html', () => raceClock().open);
+        this.stripWindow = createOverlayWindow(this.dockBounds(), 'race.html', () => raceClock().open, true);
         this.stripWindow.webContents.on('did-finish-load', () => this.pushToStrip());
         this.stripWindow.on('closed', () => {
             this.stripWindow = null;
         });
+    }
+
+    ownsWindow(win) {
+        return Boolean(win) && win === this.stripWindow;
+    }
+
+    /** Saved dock (edge + center point), or the right edge of the main screen by default. */
+    dock() {
+        const saved = this.store.get().raceDock;
+        if (saved && ['left', 'right', 'top', 'bottom'].includes(saved.edge) && typeof saved.x === 'number') {
+            return saved;
+        }
+        const workArea = screen.getPrimaryDisplay().workArea;
+        return { edge: 'right', x: workArea.x + workArea.width, y: workArea.y + workArea.height / 2 };
+    }
+
+    orientation() {
+        const edge = this.dock().edge;
+        return edge === 'top' || edge === 'bottom' ? 'horizontal' : 'vertical';
+    }
+
+    /** Window bounds flush against the dock edge, 70% of that edge long, kept on the screen. */
+    dockBounds(dock = this.dock()) {
+        const workArea = screen.getDisplayNearestPoint({ x: Math.round(dock.x), y: Math.round(dock.y) }).workArea;
+        const horizontal = dock.edge === 'top' || dock.edge === 'bottom';
+        const width = horizontal ? Math.round(workArea.width * STRIP_LENGTH_RATIO) : STRIP_THICKNESS.vertical;
+        const height = horizontal ? STRIP_THICKNESS.horizontal : Math.round(workArea.height * STRIP_LENGTH_RATIO);
+        const clamp = (value, min, max) => Math.round(Math.max(min, Math.min(max, value)));
+        let x = clamp(dock.x - width / 2, workArea.x, workArea.x + workArea.width - width);
+        let y = clamp(dock.y - height / 2, workArea.y, workArea.y + workArea.height - height);
+        if (dock.edge === 'left') {
+            x = workArea.x;
+        } else if (dock.edge === 'right') {
+            x = workArea.x + workArea.width - width;
+        } else if (dock.edge === 'top') {
+            y = workArea.y;
+        } else {
+            y = workArea.y + workArea.height - height;
+        }
+        return { x, y, width, height };
+    }
+
+    /** After a drag: snaps to the closest edge of the screen it was dropped on (and turns if needed). */
+    dockAfterDrag() {
+        if (!this.stripWindow) {
+            return;
+        }
+        const bounds = this.stripWindow.getBounds();
+        const center = { x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2 };
+        const workArea = screen.getDisplayNearestPoint({ x: Math.round(center.x), y: Math.round(center.y) }).workArea;
+        const distances = {
+            left: center.x - workArea.x,
+            right: workArea.x + workArea.width - center.x,
+            top: center.y - workArea.y,
+            bottom: workArea.y + workArea.height - center.y,
+        };
+        let edge = 'right';
+        for (const candidate of Object.keys(distances)) {
+            if (distances[candidate] < distances[edge]) {
+                edge = candidate;
+            }
+        }
+        this.store.set({ raceDock: { edge, x: center.x, y: center.y } });
+        this.stripWindow.setBounds(this.dockBounds());
+        this.pushToStrip();
+    }
+
+    /** The grab handle takes the mouse; the rest of the strip lets clicks through to the apps below. */
+    setInteractive(interactive) {
+        if (this.stripWindow) {
+            this.stripWindow.setIgnoreMouseEvents(!interactive, { forward: true });
+        }
     }
 
     /** Own taps refresh the strip at most once per second. */
@@ -198,6 +267,7 @@ class DailyRace {
         const state = this.store.get();
         const standings = this.standings && this.standings.day === clock.day ? this.standings : null;
         this.stripWindow.webContents.send('race', {
+            orientation: this.orientation(),
             open: clock.open,
             msUntilEnd: clock.msUntilEnd,
             msUntilNextRace: clock.msUntilNextRace,
@@ -238,8 +308,9 @@ class DailyRace {
 /**
  * Click-through, always-on-top, transparent window: it never gets in the way of work.
  * @param {() => boolean} shouldShow checked once loaded, so a hidden window never flashes on screen.
+ * @param {boolean} [hoverable] keeps receiving mouse moves while click-through (for a grab handle).
  */
-function createOverlayWindow(bounds, page, shouldShow) {
+function createOverlayWindow(bounds, page, shouldShow, hoverable = false) {
     const win = new BrowserWindow({
         ...bounds,
         show: false,
@@ -257,7 +328,7 @@ function createOverlayWindow(bounds, page, shouldShow) {
             nodeIntegration: false,
         },
     });
-    win.setIgnoreMouseEvents(true);
+    win.setIgnoreMouseEvents(true, { forward: hoverable });
     win.setAlwaysOnTop(true, 'floating');
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.loadFile(path.join(__dirname, 'renderer', page));

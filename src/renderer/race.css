@@ -1,4 +1,5 @@
-/* Daily race strip: a click-through vertical track on the right edge of the screen. */
+/* Daily race strip: a click-through track docked on a screen edge. Vertical by default (left/right edges),
+   horizontal (body.horizontal) on top/bottom edges. The finish line is the drag handle. */
 
 html, body {
     width: 100%;
@@ -21,7 +22,19 @@ html, body {
     top: 6px;
     left: 6px;
     right: 6px;
+    padding-bottom: 4px;
+    border-radius: 8px;
     text-align: center;
+    cursor: grab;
+}
+
+/* Hovering the finish line shows it can be grabbed to move the race. */
+.finish:hover {
+    background: rgba(17, 17, 17, 0.35);
+}
+
+body.dragging .finish {
+    cursor: grabbing;
 }
 
 .checkers {
@@ -68,7 +81,7 @@ html, body {
     height: 52px;
     display: flex;
     align-items: center;
-    transition: top 0.9s cubic-bezier(0.3, 1.3, 0.5, 1);
+    transition: top 0.9s cubic-bezier(0.3, 1.3, 0.5, 1), left 0.9s cubic-bezier(0.3, 1.3, 0.5, 1);
 }
 
 /* Mini Champ: the overlay rig, scaled down, without its counter and name tag. */
@@ -136,4 +149,60 @@ html, body {
 .countdown.next-race {
     font-size: 10px;
     color: #c8cfdd;
+}
+
+/* ---------- Horizontal track (docked on the top or bottom edge): finish on the right ---------- */
+
+body.horizontal .finish {
+    top: 6px;
+    bottom: 6px;
+    left: auto;
+    right: 6px;
+    width: 88px;
+    padding: 0 0 0 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+body.horizontal .checkers {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 10px;
+    height: auto;
+}
+
+body.horizontal .track {
+    top: 70px;
+    bottom: auto;
+    left: 10px;
+    right: 104px;
+    width: auto;
+    height: 0;
+    border-left: none;
+    border-top: 4px dashed rgba(255, 255, 255, 0.55);
+}
+
+body.horizontal .runner {
+    top: 20px;
+    right: auto;
+    width: 70px;
+    height: auto;
+    flex-direction: column;
+}
+
+body.horizontal .mini {
+    flex: 0 0 auto;
+    justify-content: center;
+    width: 70px;
+}
+
+body.horizontal .info {
+    text-align: center;
+}
+
+body.horizontal .who {
+    max-width: 70px;
 }

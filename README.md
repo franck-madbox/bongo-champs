@@ -24,8 +24,9 @@ Install once: next versions download in the background and a green **Update** bu
   (keys + clicks; the displayed counter never goes down). Capsules open in Settings > Hats or Settings > Mojis.
   Hats: Common 60%, Rare 28%, Epic 10%, Legendary 2%. Mojis: all equal. Never a duplicate.
   Your worn hat is visible to friends.
-- **Daily race**: everyone at Madbox races on today's taps. A click-through track on the right edge of the screen shows
-  the top 8 mini Champs (plus you) climbing towards the 🏁 finish. Taps count from midnight to **18:00 Paris time**;
+- **Daily race**: everyone at Madbox races on today's taps. A click-through track (70% of the screen edge) shows
+  the top 8 mini Champs (plus you) racing towards the 🏁 finish. Grab the finish line to move it: dropped near the
+  left/right edge it stands vertical, near the top/bottom edge it lies horizontal. Its place is remembered. Taps count from midnight to **18:00 Paris time**;
   at 18:00 a podium pops up and the top 3 win **3 / 2 / 1 capsules**. The track then hides and a small
   "🏁 Next race in ..." marker sits next to your Champ until the new race starts at midnight.
   Menu > *Daily race* hides or shows the track.

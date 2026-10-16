@@ -1,16 +1,22 @@
-// Daily race strip: mini Champs climbing towards the 18:00 finish line, best score at the top.
+// Daily race strip: mini Champs racing towards the 18:00 finish line, best score closest to it.
+// Vertical when docked on a left/right edge (finish at the top), horizontal on top/bottom (finish on the right).
 
 // Runners drawn on the track: the top MAX_RUNNERS, plus the local player wherever they rank.
 const MAX_RUNNERS = 8;
-const RUNNER_HEIGHT = 52;
-const TRACK_TOP = 84;
-const TRACK_BOTTOM_MARGIN = 26;
+// Room taken by one runner along the track, and where the track starts / ends, per orientation.
+const LAYOUT = {
+    vertical: { runnerSize: 52, finishSize: 84, startMargin: 26 },
+    horizontal: { runnerSize: 70, finishSize: 104, startMargin: 10 },
+};
 
 const api = window.bongo;
 const template = document.getElementById('champ-template');
 const runnersEl = document.getElementById('runners');
 /** @type {Map<string, {root: HTMLElement, champ: Champ, info: HTMLElement}>} */
 const runners = new Map();
+let orientation = 'vertical';
+let lastData = null;
+let dragging = false;
 
 /** "4h12", "12 min" or null under a minute. */
 function formatDuration(ms) {
@@ -48,8 +54,12 @@ function getRunner(id) {
         const info = document.createElement('div');
         info.className = 'info';
         root.append(mini, info);
-        // New runners start at the bottom and slide to their place.
-        root.style.top = `${window.innerHeight}px`;
+        // New runners start at the start line and slide to their place.
+        if (orientation === 'vertical') {
+            root.style.top = `${window.innerHeight}px`;
+        } else {
+            root.style.left = '0px';
+        }
         runnersEl.appendChild(root);
         runner = { root, champ, info };
         runners.set(id, runner);
@@ -57,21 +67,50 @@ function getRunner(id) {
     return runner;
 }
 
-/** Leader near the finish line, others proportionally lower, never overlapping. */
-function layout(shown) {
-    const trackBottom = window.innerHeight - TRACK_BOTTOM_MARGIN - RUNNER_HEIGHT;
-    const span = Math.max(0, trackBottom - TRACK_TOP);
+/**
+ * Distance of each runner from the finish line: the leader touches it, the others are proportionally further,
+ * never overlapping, and never past the start of the track.
+ */
+function distancesFromFinish(shown) {
+    const config = LAYOUT[orientation];
+    const length = orientation === 'vertical' ? window.innerHeight : window.innerWidth;
+    const span = Math.max(0, length - config.finishSize - config.startMargin - config.runnerSize);
     const best = Math.max(1, shown[0] ? shown[0].daily : 1);
-    let previousTop = -Infinity;
+    let previous = -Infinity;
     return shown.map((entry) => {
-        let top = TRACK_TOP + (1 - entry.daily / best) * span;
-        top = Math.max(top, previousTop + RUNNER_HEIGHT);
-        previousTop = top;
-        return Math.min(top, trackBottom);
+        let distance = (1 - entry.daily / best) * span;
+        distance = Math.max(distance, previous + config.runnerSize);
+        previous = distance;
+        return Math.min(distance, span);
     });
 }
 
+/** Places a runner at `distance` from the finish (top edge when vertical, right end when horizontal). */
+function placeRunner(root, distance) {
+    const config = LAYOUT[orientation];
+    if (orientation === 'vertical') {
+        root.style.top = `${config.finishSize + distance}px`;
+    } else {
+        root.style.left = `${window.innerWidth - config.finishSize - config.runnerSize - distance}px`;
+    }
+}
+
+/** Orientation follows the dock edge; runners are rebuilt so they slide in along the new axis. */
+function applyOrientation(next) {
+    if (next === orientation) {
+        return;
+    }
+    orientation = next;
+    document.body.classList.toggle('horizontal', orientation === 'horizontal');
+    for (const runner of runners.values()) {
+        runner.root.remove();
+    }
+    runners.clear();
+}
+
 function render(data) {
+    lastData = data;
+    applyOrientation(data.orientation || 'vertical');
     const countdown = document.getElementById('countdown');
     const left = formatDuration(data.msUntilEnd);
     countdown.textContent = data.open ? (left ? `${left} left` : 'Last sprint!') : '🏆 Podium!';
@@ -82,13 +121,13 @@ function render(data) {
     nextRace.textContent = data.open ? '' : `Next race in ${untilNext || '1 min'}`;
 
     const shown = selectRunners(data);
-    const tops = layout(shown);
+    const distances = distancesFromFinish(shown);
     const seen = new Set();
     shown.forEach((entry, index) => {
         seen.add(entry.id);
         const runner = getRunner(entry.id);
         runner.root.classList.toggle('me', entry.id === data.me.id);
-        runner.root.style.top = `${tops[index]}px`;
+        placeRunner(runner.root, distances[index]);
         runner.champ.setHue(entry.hue);
         runner.champ.setHat(hatFile(data.catalog, entry.hat));
         runner.info.textContent = '';
@@ -112,3 +151,31 @@ function render(data) {
 }
 
 api.on('race', render);
+
+// The window is resized when it docks on another edge.
+window.addEventListener('resize', () => {
+    if (lastData) {
+        render(lastData);
+    }
+});
+
+// ---------- Drag handle: the finish line ----------
+// The window lets clicks through everywhere; hovering the finish line makes it grabbable.
+
+const handle = document.querySelector('.finish');
+handle.addEventListener('mouseenter', () => api.setRaceInteractive(true));
+handle.addEventListener('mouseleave', () => {
+    if (!dragging) {
+        api.setRaceInteractive(false);
+    }
+});
+document.addEventListener('pointerdown', () => {
+    dragging = true;
+});
+document.addEventListener('pointerup', () => {
+    dragging = false;
+    // After snapping to an edge the pointer may no longer be over the handle.
+    setTimeout(() => api.setRaceInteractive(handle.matches(':hover')), 300);
+});
+
+setupWindowDrag(api, {});

@@ -28,4 +28,5 @@ contextBridge.exposeInMainWorld('bongo', {
     sendEmoji: (emoji) => ipcRenderer.send('send-emoji', emoji),
     openSettings: () => ipcRenderer.send('open-settings'),
     installUpdate: () => ipcRenderer.send('install-update'),
+    setRaceInteractive: (interactive) => ipcRenderer.send('race-interactive', interactive),
 });
