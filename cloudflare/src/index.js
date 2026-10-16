@@ -55,7 +55,7 @@ export default {
             if (request.method !== 'POST' || !(request.headers.get('Content-Type') || '').startsWith('application/json')) {
                 return new Response('Expected a JSON POST', { status: 400 });
             }
-            const result = await env.RACE.get(env.RACE.idFromName('global')).fetch('https://race/latest-version', {
+            const result = await raceStub(env, url).fetch('https://race/latest-version', {
                 method: 'POST',
                 body: await request.text(),
             });
@@ -66,7 +66,7 @@ export default {
             if (request.headers.get('Upgrade') !== 'websocket') {
                 return new Response('Expected a WebSocket upgrade', { status: 426 });
             }
-            return env.RACE.get(env.RACE.idFromName('global')).fetch(request);
+            return raceStub(env, url).fetch(request);
         }
 
         const match = ROOM_PATH_REGEX.exec(url.pathname);
@@ -82,6 +82,15 @@ export default {
         return stub.fetch(request);
     },
 };
+
+/**
+ * The race board for a request: '?board=test' is a separate board for live protocol tests (fake racers never
+ * show on the real one), anything else is the global board every app uses.
+ */
+function raceStub(env, url) {
+    const board = url.searchParams.get('board') === 'test' ? 'test' : 'global';
+    return env.RACE.get(env.RACE.idFromName(board));
+}
 
 function isAllowedEmoji(emoji) {
     return LEGACY_EMOJIS.includes(emoji) || (typeof emoji === 'string' && MOJI_ID_REGEX.test(emoji));
