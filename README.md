@@ -26,7 +26,8 @@ Install once: next versions download in the background and a green **Update** bu
   Your worn hat is visible to friends.
 - **Daily race**: everyone at Madbox races on today's taps. A click-through track on the right edge of the screen shows
   the top 8 mini Champs (plus you) climbing towards the 🏁 finish. Taps count from midnight to **18:00 Paris time**;
-  at 18:00 a podium pops up and the top 3 win **3 / 2 / 1 capsules**. A new race starts at midnight.
+  at 18:00 a podium pops up and the top 3 win **3 / 2 / 1 capsules**. The track then hides and a small
+  "🏁 Next race in ..." marker sits next to your Champ until the new race starts at midnight.
   Menu > *Daily race* hides or shows the track.
 - **macOS:** the first launch asks for **Accessibility** access (System Settings > Privacy & Security > Accessibility). It's required to count keys and clicks in other apps.
 

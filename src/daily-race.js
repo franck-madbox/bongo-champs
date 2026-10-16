@@ -20,12 +20,14 @@ const STRIP_PUSH_MS = 1000;
 class DailyRace {
     /**
      * @param {{store: object, getCatalog: () => object, getServerUrl: () => string,
-     *          onReward: (capsules: number) => void}} options
+     *          onReward: (capsules: number) => void, onStatus: (status: object) => void}} options
+     *   onStatus: race open/closed changes, for the "next race" marker next to the local Champ.
      */
     constructor(options) {
         this.store = options.store;
         this.getCatalog = options.getCatalog;
         this.onReward = options.onReward;
+        this.onStatus = options.onStatus;
         this.publicId = crypto.createHash('sha256').update(this.store.get().id).digest('hex').slice(0, 16);
         this.standings = null;
         this.stripWindow = null;
@@ -105,7 +107,15 @@ class DailyRace {
             this.client.requestStandings();
         }
         this.lastClock = clock;
+        this.syncStripVisibility();
         this.pushToStrip();
+        this.onStatus(this.status());
+    }
+
+    /** For the local Champ: the "next race" marker shows while the track is hidden (18:00 to midnight). */
+    status() {
+        const clock = raceClock();
+        return { enabled: this.store.get().raceVisible !== false, open: clock.open, msUntilNextRace: clock.msUntilNextRace };
     }
 
     /** Once per day: credits the podium reward and shows the podium window. */
@@ -127,8 +137,22 @@ class DailyRace {
 
     // ---------- Windows ----------
 
+    /** Whether the race track is enabled (Menu > Daily race). It is still hidden between the podium and midnight. */
     isVisible() {
         return Boolean(this.stripWindow);
+    }
+
+    /** The track only shows while the race is running. */
+    syncStripVisibility() {
+        if (!this.stripWindow || this.stripWindow.isDestroyed()) {
+            return;
+        }
+        const open = raceClock().open;
+        if (open && !this.stripWindow.isVisible()) {
+            this.stripWindow.showInactive();
+        } else if (!open && this.stripWindow.isVisible()) {
+            this.stripWindow.hide();
+        }
     }
 
     setVisible(visible) {
@@ -139,6 +163,7 @@ class DailyRace {
             this.stripWindow.destroy();
             this.stripWindow = null;
         }
+        this.onStatus(this.status());
     }
 
     createStrip() {
@@ -148,7 +173,7 @@ class DailyRace {
             y: workArea.y,
             width: STRIP_WIDTH,
             height: workArea.height,
-        }, 'race.html');
+        }, 'race.html', () => raceClock().open);
         this.stripWindow.webContents.on('did-finish-load', () => this.pushToStrip());
         this.stripWindow.on('closed', () => {
             this.stripWindow = null;
@@ -192,7 +217,7 @@ class DailyRace {
             x: Math.round(workArea.x + (workArea.width - PODIUM_SIZE.width) / 2),
             y: Math.round(workArea.y + (workArea.height - PODIUM_SIZE.height) / 2),
             ...PODIUM_SIZE,
-        }, 'podium.html');
+        }, 'podium.html', () => true);
         win.webContents.on('did-finish-load', () => {
             win.webContents.send('podium', {
                 ...result,
@@ -210,8 +235,11 @@ class DailyRace {
     }
 }
 
-/** Click-through, always-on-top, transparent window: it never gets in the way of work. */
-function createOverlayWindow(bounds, page) {
+/**
+ * Click-through, always-on-top, transparent window: it never gets in the way of work.
+ * @param {() => boolean} shouldShow checked once loaded, so a hidden window never flashes on screen.
+ */
+function createOverlayWindow(bounds, page, shouldShow) {
     const win = new BrowserWindow({
         ...bounds,
         show: false,
@@ -233,7 +261,11 @@ function createOverlayWindow(bounds, page) {
     win.setAlwaysOnTop(true, 'floating');
     win.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
     win.loadFile(path.join(__dirname, 'renderer', page));
-    win.once('ready-to-show', () => win.showInactive());
+    win.once('ready-to-show', () => {
+        if (shouldShow()) {
+            win.showInactive();
+        }
+    });
     return win;
 }
 

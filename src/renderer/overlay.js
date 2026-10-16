@@ -15,6 +15,7 @@ const requestFit = createFitter(api, contentEl);
 const me = new Champ(template, { isMe: true });
 const giftEl = me.root.querySelector('.gift');
 const updateEl = me.root.querySelector('.update');
+const nextRaceEl = me.root.querySelector('.next-race-marker');
 const emojiBar = createEmojiBar();
 
 let profile = null;
@@ -92,6 +93,17 @@ function sendEmoji(emoji) {
     toggleEmojiBar(false);
 }
 
+/** "🏁 Next race in 5h12" next to the Champ while the race track is hidden (18:00 to midnight). */
+function renderRaceMarker(status) {
+    const show = Boolean(status && status.enabled && !status.open);
+    nextRaceEl.classList.toggle('hidden', !show);
+    if (show) {
+        const hours = Math.floor(status.msUntilNextRace / 3600000);
+        const minutes = Math.floor((status.msUntilNextRace % 3600000) / 60000);
+        nextRaceEl.textContent = `🏁 Next race in ${hours > 0 ? `${hours}h${String(minutes).padStart(2, '0')}` : `${Math.max(1, minutes)} min`}`;
+    }
+}
+
 // ---------- Events from the main process ----------
 
 api.on('tap', (payload) => {
@@ -100,6 +112,8 @@ api.on('tap', (payload) => {
 });
 
 api.on('release', () => me.release());
+
+api.on('race-status', renderRaceMarker);
 
 api.on('profile', (newProfile) => {
     profile = newProfile;
@@ -152,6 +166,7 @@ async function init() {
     applySize(contentEl, profile.size, requestFit);
     sessionStatus = state.session;
     permissionEl.classList.toggle('hidden', !state.permissionMissing);
+    renderRaceMarker(state.raceStatus);
     renderMyLabel();
 }
 

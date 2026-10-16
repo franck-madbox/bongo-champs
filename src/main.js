@@ -635,7 +635,12 @@ function registerTap(side) {
 // ---------- IPC ----------
 
 function registerIpc() {
-    ipcMain.handle('get-state', () => ({ ...publicState(), session: session.getStatus(), permissionMissing }));
+    ipcMain.handle('get-state', () => ({
+        ...publicState(),
+        session: session.getStatus(),
+        permissionMissing,
+        raceStatus: dailyRace.status(),
+    }));
 
     ipcMain.handle('open-capsule', (_event, collectionId) => openCapsule(String(collectionId)));
 
@@ -748,6 +753,7 @@ app.whenReady().then(() => {
             store.set({ tokens: store.get().tokens + capsules });
             notifyProfile();
         },
+        onStatus: (status) => sendToOverlay('race-status', status),
     });
 
     session = new SessionClient({
