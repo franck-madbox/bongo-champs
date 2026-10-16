@@ -23,14 +23,17 @@ const STRIP_PUSH_MS = 1000;
 class DailyRace {
     /**
      * @param {{store: object, getCatalog: () => object, getServerUrl: () => string,
-     *          onReward: (capsules: number) => void, onStatus: (status: object) => void}} options
+     *          onReward: (capsules: number) => void, onStatus: (status: object) => void,
+     *          onLatestVersion: (version: string) => void}} options
      *   onStatus: race open/closed changes, for the "next race" marker next to the local Champ.
+     *   onLatestVersion: newest released app version announced by the server (set in its admin), on every standings message.
      */
     constructor(options) {
         this.store = options.store;
         this.getCatalog = options.getCatalog;
         this.onReward = options.onReward;
         this.onStatus = options.onStatus;
+        this.onLatestVersion = options.onLatestVersion;
         this.publicId = crypto.createHash('sha256').update(this.store.get().id).digest('hex').slice(0, 16);
         this.standings = null;
         this.stripWindow = null;
@@ -98,6 +101,9 @@ class DailyRace {
     // ---------- Standings, podium, rewards ----------
 
     handleStandings(message) {
+        if (message.latestVersion && this.onLatestVersion) {
+            this.onLatestVersion(message.latestVersion);
+        }
         this.standings = message;
         this.pushToStrip();
         const clock = raceClock();

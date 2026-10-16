@@ -82,8 +82,11 @@ cd server && docker build -t bongo-champs-server . && docker run -p 8787:8787 bo
 1. Bump `version` in `package.json`, commit and push.
 2. `gh release create v<version> --target main --title "Bongo Champs <version>" --notes "..."`
 3. `GH_TOKEN=$(gh auth token) npx electron-builder --mac --win --publish always`
+4. Once the release is published (all files uploaded), open `/admin` and set **Latest app version** to `<version>`.
 
-Installed apps pick it up within 4 hours (or at next launch) through `latest-mac.yml` / `latest.yml`.
+Apps from 1.4.3 receive the latest version with the race standings and check for the update right away (within
+about a minute, a random delay spreads the GitHub checks), then show the Update button. Without step 4, and for
+apps older than 1.4.3, installed apps pick it up within 4 hours (or at next launch) through `latest-mac.yml` / `latest.yml`.
 
 ## Build installers
 

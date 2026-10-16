@@ -27,7 +27,7 @@ function sanitizeProfile(msg) {
     if ('hat' in msg) {
         profile.hat = typeof msg.hat === 'string' && HAT_ID_REGEX.test(msg.hat) ? msg.hat : null;
     }
-    if (typeof msg.version === 'string' && VERSION_REGEX.test(msg.version)) {
+    if (isValidVersion(msg.version)) {
         profile.version = msg.version;
     }
     return profile;
@@ -59,8 +59,16 @@ function removeRacer(board, privateId) {
     return board.entries.delete(privateId);
 }
 
-/** Message broadcast to every racer: the day's best scores, best first. */
-function standingsMessage(board, clock) {
+/** Whether a value is a plain 'major.minor.patch' app version. */
+function isValidVersion(version) {
+    return typeof version === 'string' && VERSION_REGEX.test(version);
+}
+
+/**
+ * Message broadcast to every racer: the day's best scores, best first.
+ * @param {string|null} [latestVersion] newest released app version (set in the admin), so apps check for updates right away.
+ */
+function standingsMessage(board, clock, latestVersion = null) {
     const entries = board.day === clock.day ? Array.from(board.entries.values()) : [];
     entries.sort((a, b) => b.daily - a.daily);
     return {
@@ -70,6 +78,7 @@ function standingsMessage(board, clock) {
         total: entries.length,
         // Only public fields are broadcast (the app version stays on the server, for admin stats).
         standings: entries.slice(0, STANDINGS_SIZE).map(({ id, name, hue, hat, daily }) => ({ id, name, hue, hat, daily })),
+        latestVersion: isValidVersion(latestVersion) ? latestVersion : null,
     };
 }
 
@@ -94,4 +103,4 @@ function deserializeBoard(data) {
     return data ? { day: data.day, entries: new Map(Object.entries(data.entries || {})) } : createBoard();
 }
 
-module.exports = { createBoard, applyRaceMessage, removeRacer, standingsMessage, summarizeDay, serializeBoard, deserializeBoard };
+module.exports = { createBoard, applyRaceMessage, removeRacer, standingsMessage, isValidVersion, summarizeDay, serializeBoard, deserializeBoard };

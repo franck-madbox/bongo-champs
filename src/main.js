@@ -20,6 +20,10 @@ const CHAMP_SIZES = [
 ];
 const PLAY_TICK_MS = 60 * 1000;
 const UPDATE_CHECK_MS = 4 * 60 * 60 * 1000;
+// When the server announces a newer release: random delay before checking, so all apps don't hit GitHub
+// in the same second, and the wait before retrying a failed check (e.g. release assets still uploading).
+const ANNOUNCED_UPDATE_JITTER_MS = 60 * 1000;
+const ANNOUNCED_UPDATE_RETRY_MS = 5 * 60 * 1000;
 
 let store = null;
 let session = null;
@@ -32,6 +36,10 @@ let inputHookStarted = false;
 let permissionMissing = false;
 // Version downloaded by the auto-updater and ready to install on restart, or null.
 let updateReady = null;
+// Runs an update check now (set by startAutoUpdater, installed builds only), and the announced version
+// that already triggered one (so the standings broadcast every few seconds checks only once per release).
+let checkForUpdates = null;
+let announcedVersionChecked = null;
 
 // ---------- Single instance + deep links (bongochamps://join/CODE) ----------
 
@@ -513,9 +521,50 @@ function startAutoUpdater() {
         notifyProfile();
     });
     autoUpdater.on('error', (error) => console.error('Auto-update failed', error));
-    const check = () => autoUpdater.checkForUpdates().catch((error) => console.error('Update check failed', error));
+    // Resolves false when the check failed.
+    const check = () => autoUpdater.checkForUpdates().then(() => true, (error) => {
+        console.error('Update check failed', error);
+        return false;
+    });
+    checkForUpdates = check;
     check();
     setInterval(check, UPDATE_CHECK_MS);
+}
+
+/** 'major.minor.patch' comparison: positive when a is newer than b. */
+function compareVersions(a, b) {
+    const left = String(a).split('.').map(Number);
+    const right = String(b).split('.').map(Number);
+    for (let index = 0; index < 3; index += 1) {
+        const diff = (left[index] || 0) - (right[index] || 0);
+        if (diff !== 0) {
+            return diff;
+        }
+    }
+    return 0;
+}
+
+/**
+ * The server announced its latest release (race standings): when it's newer than this app and not downloaded yet,
+ * checks GitHub once (after a short random delay) instead of waiting for the 4-hour check.
+ */
+function onLatestVersionAnnounced(version) {
+    if (!checkForUpdates || version === announcedVersionChecked || compareVersions(version, app.getVersion()) <= 0) {
+        return;
+    }
+    if (updateReady && compareVersions(updateReady, version) >= 0) {
+        return;
+    }
+    announcedVersionChecked = version;
+    setTimeout(async () => {
+        const ok = await checkForUpdates();
+        if (!ok) {
+            // Allow another try with a later standings message.
+            setTimeout(() => {
+                announcedVersionChecked = null;
+            }, ANNOUNCED_UPDATE_RETRY_MS);
+        }
+    }, Math.random() * ANNOUNCED_UPDATE_JITTER_MS);
 }
 
 function installUpdate() {
@@ -768,6 +817,7 @@ app.whenReady().then(() => {
             notifyProfile();
         },
         onStatus: (status) => sendToOverlay('race-status', status),
+        onLatestVersion: onLatestVersionAnnounced,
     });
 
     session = new SessionClient({

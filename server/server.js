@@ -26,6 +26,8 @@ const rooms = new Map();
 // ---------- Daily race (one board for everyone, clients connect to /race) ----------
 
 const RACE_BROADCAST_MS = 2000;
+// Newest released app version sent with the standings (set from /admin on Cloudflare; here from the environment for testing).
+const LATEST_VERSION = process.env.BONGO_LATEST_VERSION || null;
 const raceBoard = createBoard();
 const raceClients = new Set();
 let lastRaceBroadcast = 0;
@@ -40,7 +42,7 @@ function broadcastRace() {
     clearTimeout(raceBroadcastTimer);
     raceBroadcastTimer = null;
     lastRaceBroadcast = Date.now();
-    const payload = JSON.stringify(standingsMessage(raceBoard, raceClock()));
+    const payload = JSON.stringify(standingsMessage(raceBoard, raceClock(), LATEST_VERSION));
     for (const ws of raceClients) {
         if (ws.readyState === ws.OPEN) {
             ws.send(payload);
@@ -61,7 +63,7 @@ function scheduleRaceBroadcast() {
 function handleRaceMessage(ws, msg) {
     const clock = raceClock();
     if (msg.t === 'race-get') {
-        send(ws, standingsMessage(raceBoard, clock));
+        send(ws, standingsMessage(raceBoard, clock, LATEST_VERSION));
         return;
     }
     if (msg.t === 'race-leave') {
@@ -86,7 +88,7 @@ function handleRaceMessage(ws, msg) {
     }
     applyRaceMessage(raceBoard, ws.racePrivateId, ws.racePublicId, msg, clock);
     if (msg.t === 'race-join') {
-        send(ws, standingsMessage(raceBoard, clock));
+        send(ws, standingsMessage(raceBoard, clock, LATEST_VERSION));
     }
     scheduleRaceBroadcast();
 }

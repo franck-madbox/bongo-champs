@@ -1,5 +1,6 @@
 // Admin dashboard served at /admin (behind HTTP Basic auth, see checkAdmin in index.js).
-// Self-contained page: it polls /admin/stats (same credentials, sent again by the browser) every 10 seconds.
+// Self-contained page: it polls /admin/stats (same credentials, sent again by the browser) every 10 seconds,
+// and sets the latest released app version with a JSON POST to /admin/latest-version.
 
 export const ADMIN_PAGE = `<!doctype html>
 <html lang="en">
@@ -36,6 +37,10 @@ export const ADMIN_PAGE = `<!doctype html>
         white-space: nowrap; background: #111; color: #fff; font-size: 11px; padding: 3px 6px; border-radius: 4px; margin-bottom: 4px; }
     .empty { color: var(--muted); font-size: 13px; padding: 12px; background: var(--card); border-radius: 12px; }
     .error { color: #ff6b6b; }
+    form.release { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 12px 16px; background: var(--card); border-radius: 12px; }
+    form.release input { width: 120px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); font-size: 14px; }
+    form.release button { padding: 7px 14px; border: none; border-radius: 8px; background: var(--accent); color: #1d2230; font-weight: 800; cursor: pointer; }
+    form.release .sub { margin: 0; }
 </style>
 </head>
 <body>
@@ -62,6 +67,14 @@ export const ADMIN_PAGE = `<!doctype html>
             <table><thead><tr><th>Version</th><th class="num">Players</th></tr></thead><tbody id="versions"></tbody></table>
         </div>
     </div>
+
+    <h2>Latest app version</h2>
+    <form id="release" class="release">
+        <span class="label">Current: <span id="latest">-</span></span>
+        <input id="latest-input" placeholder="1.4.3" pattern="\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}" autocomplete="off">
+        <button type="submit">Set</button>
+        <span id="release-status" class="sub">Set it after a release is published: connected apps check for the update within a minute (empty = clear).</span>
+    </form>
 
     <h2>Taps per day (last 30 days)</h2>
     <div id="chart" class="chart"></div>
@@ -143,6 +156,8 @@ export const ADMIN_PAGE = `<!doctype html>
             chart.appendChild(bar);
         });
 
+        $('latest').textContent = stats.latestVersion || 'not set';
+
         $('updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
         $('updated').classList.remove('error');
     }
@@ -160,6 +175,30 @@ export const ADMIN_PAGE = `<!doctype html>
             $('updated').classList.add('error');
         }
     }
+
+    // Latest version form: JSON POST (the server refuses anything else, see index.js).
+    $('release').addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const status = $('release-status');
+        try {
+            const response = await fetch(location.origin + '/admin/latest-version', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ version: $('latest-input').value.trim() }),
+            });
+            const result = await response.json();
+            if (!response.ok) {
+                throw new Error(result.error || 'HTTP ' + response.status);
+            }
+            status.textContent = result.latestVersion ? 'Sent ' + result.latestVersion + ' to every connected app.' : 'Cleared.';
+            status.classList.remove('error');
+            $('latest-input').value = '';
+            refresh();
+        } catch (error) {
+            status.textContent = 'Failed: ' + error.message;
+            status.classList.add('error');
+        }
+    });
 
     refresh();
     setInterval(refresh, REFRESH_MS);

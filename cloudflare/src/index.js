@@ -4,7 +4,7 @@
 
 import { DurableObject } from 'cloudflare:workers';
 import { raceClock } from '../../src/race-time.js';
-import { applyRaceMessage, removeRacer, standingsMessage, summarizeDay, serializeBoard, deserializeBoard } from '../../src/race-board.js';
+import { applyRaceMessage, removeRacer, standingsMessage, isValidVersion, summarizeDay, serializeBoard, deserializeBoard } from '../../src/race-board.js';
 import { ADMIN_PAGE } from './admin-page.js';
 
 const MAX_PLAYERS_PER_ROOM = 16;
@@ -43,6 +43,23 @@ export default {
             }
             const stats = await env.RACE.get(env.RACE.idFromName('global')).fetch('https://race/stats');
             return new Response(stats.body, { headers: { ...headers, 'Content-Type': 'application/json' } });
+        }
+
+        // Admin: newest released app version, pushed to every connected app so it checks for the update right away.
+        if (url.pathname === '/admin/latest-version') {
+            const denied = await checkAdmin(request, env);
+            if (denied) {
+                return denied;
+            }
+            // JSON only: a cross-site HTML form can't send it, so another page can't use the browser's saved password (CSRF).
+            if (request.method !== 'POST' || !(request.headers.get('Content-Type') || '').startsWith('application/json')) {
+                return new Response('Expected a JSON POST', { status: 400 });
+            }
+            const result = await env.RACE.get(env.RACE.idFromName('global')).fetch('https://race/latest-version', {
+                method: 'POST',
+                body: await request.text(),
+            });
+            return new Response(result.body, { status: result.status, headers: { 'Cache-Control': 'no-store', 'Content-Type': 'application/json' } });
         }
 
         if (url.pathname === '/race') {
@@ -281,17 +298,24 @@ export class Race extends DurableObject {
         // Most apps connected at the same time today, and the daily summaries of past days (admin stats).
         this.peak = { day: null, online: 0 };
         this.history = [];
+        // Newest released app version, set from the admin (null = not set). Sent with every standings message.
+        this.latestVersion = null;
         ctx.blockConcurrencyWhile(async () => {
             this.board = deserializeBoard(await ctx.storage.get('board'));
             this.peak = (await ctx.storage.get('peak')) || this.peak;
             this.history = (await ctx.storage.get('history')) || [];
+            this.latestVersion = (await ctx.storage.get('latestVersion')) || null;
         });
     }
 
     async fetch(request) {
-        if (new URL(request.url).pathname === '/stats') {
+        const pathname = new URL(request.url).pathname;
+        if (pathname === '/stats') {
             await this.rollDay(raceClock());
             return Response.json(this.stats());
+        }
+        if (pathname === '/latest-version') {
+            return this.setLatestVersion(request);
         }
         const pair = new WebSocketPair();
         const [client, server] = Object.values(pair);
@@ -306,6 +330,25 @@ export class Race extends DurableObject {
             await this.scheduleSave();
         }
         return new Response(null, { status: 101, webSocket: client });
+    }
+
+    /** Admin sets (or clears with an empty string) the newest released version: saved once, then broadcast at once. */
+    async setLatestVersion(request) {
+        let body;
+        try {
+            body = await request.json();
+        } catch {
+            body = null;
+        }
+        const version = body && typeof body.version === 'string' ? body.version.trim() : null;
+        if (version === null || (version !== '' && !isValidVersion(version))) {
+            return Response.json({ error: 'Expected {"version": "major.minor.patch"} (or "" to clear)' }, { status: 400 });
+        }
+        this.latestVersion = version || null;
+        // Only written when the admin changes it (free-plan write quota), never per race message.
+        await this.ctx.storage.put('latestVersion', this.latestVersion);
+        this.broadcast();
+        return Response.json({ latestVersion: this.latestVersion });
     }
 
     /** On the first event of a new Paris day: archives yesterday's summary, starts a fresh board. */
@@ -334,6 +377,7 @@ export class Race extends DurableObject {
             today: { ...today, peakOnline },
             top: standings.slice(0, 3).map(({ name, daily }) => ({ name, daily })),
             history: this.history,
+            latestVersion: this.latestVersion,
         };
     }
 
@@ -349,7 +393,7 @@ export class Race extends DurableObject {
         clearTimeout(this.broadcastTimer);
         this.broadcastTimer = null;
         this.lastBroadcast = Date.now();
-        const payload = standingsMessage(this.board, raceClock());
+        const payload = standingsMessage(this.board, raceClock(), this.latestVersion);
         for (const ws of this.ctx.getWebSockets()) {
             this.send(ws, payload);
         }
@@ -385,7 +429,7 @@ export class Race extends DurableObject {
         const clock = raceClock();
         await this.rollDay(clock);
         if (msg.t === 'race-get') {
-            this.send(ws, standingsMessage(this.board, clock));
+            this.send(ws, standingsMessage(this.board, clock, this.latestVersion));
             return;
         }
         let attachment = ws.deserializeAttachment();
@@ -413,7 +457,7 @@ export class Race extends DurableObject {
         applyRaceMessage(this.board, attachment.privateId, attachment.publicId, msg, clock);
         await this.scheduleSave();
         if (msg.t === 'race-join') {
-            this.send(ws, standingsMessage(this.board, clock));
+            this.send(ws, standingsMessage(this.board, clock, this.latestVersion));
         }
         this.scheduleBroadcast();
     }
