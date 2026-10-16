@@ -3,7 +3,10 @@
 // Only counts are ever transmitted: no key codes, no text.
 
 const http = require('http');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
+const { raceClock } = require('../src/race-time');
+const { createBoard, applyRaceMessage, removeRacer, standingsMessage } = require('../src/race-board');
 
 const PORT = Number(process.env.PORT) || 8787;
 const MAX_PLAYERS_PER_ROOM = Number(process.env.MAX_PLAYERS_PER_ROOM) || 16;
@@ -19,6 +22,74 @@ const EMOJI_COOLDOWN_MS = 1500;
 
 /** @type {Map<string, Map<string, {ws: import('ws').WebSocket, peer: object}>>} */
 const rooms = new Map();
+
+// ---------- Daily race (one board for everyone, clients connect to /race) ----------
+
+const RACE_BROADCAST_MS = 2000;
+const raceBoard = createBoard();
+const raceClients = new Set();
+let lastRaceBroadcast = 0;
+let raceBroadcastTimer = null;
+
+/** Public id broadcast in standings: a hash, so the private id stays secret. */
+function publicRaceId(privateId) {
+    return crypto.createHash('sha256').update(privateId).digest('hex').slice(0, 16);
+}
+
+function broadcastRace() {
+    clearTimeout(raceBroadcastTimer);
+    raceBroadcastTimer = null;
+    lastRaceBroadcast = Date.now();
+    const payload = JSON.stringify(standingsMessage(raceBoard, raceClock()));
+    for (const ws of raceClients) {
+        if (ws.readyState === ws.OPEN) {
+            ws.send(payload);
+        }
+    }
+}
+
+/** At most one standings broadcast every RACE_BROADCAST_MS, the latest state always goes out. */
+function scheduleRaceBroadcast() {
+    const wait = RACE_BROADCAST_MS - (Date.now() - lastRaceBroadcast);
+    if (wait <= 0) {
+        broadcastRace();
+    } else if (!raceBroadcastTimer) {
+        raceBroadcastTimer = setTimeout(broadcastRace, wait);
+    }
+}
+
+function handleRaceMessage(ws, msg) {
+    const clock = raceClock();
+    if (msg.t === 'race-get') {
+        send(ws, standingsMessage(raceBoard, clock));
+        return;
+    }
+    if (msg.t === 'race-leave') {
+        if (ws.racePrivateId && removeRacer(raceBoard, ws.racePrivateId)) {
+            scheduleRaceBroadcast();
+        }
+        return;
+    }
+    if (msg.t !== 'race-join' && msg.t !== 'race-update') {
+        return;
+    }
+    if (msg.t === 'race-join') {
+        const privateId = String(msg.id || '').slice(0, 64);
+        if (!privateId) {
+            return;
+        }
+        ws.racePrivateId = privateId;
+        ws.racePublicId = publicRaceId(privateId);
+    }
+    if (!ws.racePrivateId) {
+        return;
+    }
+    applyRaceMessage(raceBoard, ws.racePrivateId, ws.racePublicId, msg, clock);
+    if (msg.t === 'race-join') {
+        send(ws, standingsMessage(raceBoard, clock));
+    }
+    scheduleRaceBroadcast();
+}
 
 // Plain HTTP endpoint so hosting platforms can health-check the service.
 const httpServer = http.createServer((req, res) => {
@@ -154,6 +225,24 @@ function handleEmoji(ws, msg) {
 }
 
 wss.on('connection', (ws, req) => {
+    if ((req.url || '').split('?')[0] === '/race') {
+        raceClients.add(ws);
+        ws.isAlive = true;
+        ws.on('pong', () => {
+            ws.isAlive = true;
+        });
+        ws.on('message', (raw) => {
+            try {
+                handleRaceMessage(ws, JSON.parse(raw.toString()));
+            } catch {
+                // Ignore malformed messages.
+            }
+        });
+        ws.on('close', () => raceClients.delete(ws));
+        ws.on('error', () => raceClients.delete(ws));
+        return;
+    }
+
     const urlMatch = /^\/room\/([A-Za-z0-9]{4,8})\/?$/.exec(req.url || '');
     ws.urlRoom = urlMatch ? urlMatch[1].toUpperCase() : null;
     ws.isAlive = true;

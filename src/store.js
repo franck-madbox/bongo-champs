@@ -27,6 +27,11 @@ function defaultState() {
         // Mojis won at the capsule machine (starters are implicit), and tap points spendable on capsules.
         mojis: [],
         points: 0,
+        // Daily race: today's taps (Paris day), strip visibility, and the last podium shown / reward claimed.
+        daily: { day: null, count: 0 },
+        raceVisible: true,
+        podiumShownDay: null,
+        raceClaimedDay: null,
         // Only set when the user typed another server: otherwise the built-in default is used,
         // so shipping a build with a new server URL moves everyone to it.
         customServerUrl: null,

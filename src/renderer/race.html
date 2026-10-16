@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+    <title>Daily Race</title>
+    <link rel="stylesheet" href="overlay.css">
+    <link rel="stylesheet" href="race.css">
+</head>
+<body>
+    <div class="finish">
+        <div class="checkers"></div>
+        <div class="finish-label">🏁 18:00</div>
+        <div id="countdown" class="countdown"></div>
+        <div id="next-race" class="countdown next-race"></div>
+    </div>
+    <div class="track"></div>
+    <div id="runners"></div>
+
+    <template id="champ-template">
+        <div class="champ">
+            <div class="count">0</div>
+            <div class="stage">
+                <div class="part head"></div>
+                <div class="part hat hidden"></div>
+                <div class="part arm left up"></div>
+                <div class="part arm right up"></div>
+                <div class="emoji-bubble hidden"></div>
+            </div>
+            <div class="name"></div>
+        </div>
+    </template>
+
+    <script src="champ.js"></script>
+    <script src="overlay-common.js"></script>
+    <script src="race.js"></script>
+</body>
+</html>

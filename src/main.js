@@ -7,6 +7,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, screen, systemPref
 const { Store } = require('./store');
 const { SessionClient } = require('./session-client');
 const gacha = require('./gacha');
+const { DailyRace } = require('./daily-race');
 
 const PROTOCOL = 'bongochamps';
 const ASSETS_DIR = path.join(__dirname, 'renderer', 'assets');
@@ -22,6 +23,7 @@ const UPDATE_CHECK_MS = 4 * 60 * 60 * 1000;
 
 let store = null;
 let session = null;
+let dailyRace = null;
 let overlayWindow = null;
 let settingsWindow = null;
 let tray = null;
@@ -362,6 +364,7 @@ function openCapsule(collectionId) {
     store.set(result.patch);
     if (collectionId === 'hats') {
         session.updateProfile();
+        dailyRace.profileChanged();
     }
     notifyProfile();
     return { ok: true, item: result.item, state: publicState() };
@@ -385,6 +388,7 @@ function wearHat(hatId) {
     }
     store.set({ hat: id });
     session.updateProfile();
+    dailyRace.profileChanged();
     notifyProfile();
 }
 
@@ -451,6 +455,15 @@ function buildMenuTemplate() {
             })),
         },
         { label: visible ? 'Hide Champ' : 'Show Champ', click: toggleOverlay },
+        {
+            label: 'Daily race',
+            type: 'checkbox',
+            checked: dailyRace ? dailyRace.isVisible() : false,
+            click: (item) => {
+                dailyRace.setVisible(item.checked);
+                refreshTray();
+            },
+        },
         { label: 'Reset positions', click: resetPositions },
         { type: 'separator' },
         { label: 'Quit Bongo Champs', click: () => app.quit() },
@@ -606,6 +619,7 @@ function registerTap(side) {
     const count = store.increment();
     sendToOverlay('tap', { side, count });
     session.addTap(count);
+    dailyRace.registerTap();
 
     // The tray label shows the count: refresh it lazily, not on every key.
     if (!trayRefreshTimer) {
@@ -673,6 +687,7 @@ function registerIpc() {
     }));
 
     ipcMain.handle('save-profile', (_event, profile) => {
+        const previousServer = store.get().serverUrl;
         store.set({
             name: String(profile.name || 'Champ').trim().slice(0, 20) || 'Champ',
             hue: Math.max(0, Math.min(360, Number(profile.hue) || 0)),
@@ -680,6 +695,10 @@ function registerIpc() {
             size: isValidSize(profile.size) ? profile.size : store.get().size,
         });
         session.updateProfile();
+        dailyRace.profileChanged();
+        if (store.get().serverUrl !== previousServer) {
+            dailyRace.serverChanged();
+        }
         notifyProfile();
         return publicState();
     });
@@ -718,6 +737,18 @@ app.whenReady().then(() => {
     }
 
     store = new Store(path.join(app.getPath('userData'), 'settings.json'));
+
+    // Created before the input hook starts: every tap also counts for the daily race.
+    dailyRace = new DailyRace({
+        store,
+        getCatalog: () => gacha.getCatalog(),
+        getServerUrl: () => store.get().serverUrl,
+        // Podium capsules land in the shared capsule stock.
+        onReward: (capsules) => {
+            store.set({ tokens: store.get().tokens + capsules });
+            notifyProfile();
+        },
+    });
 
     session = new SessionClient({
         getProfile: () => store.get(),
@@ -759,6 +790,9 @@ app.whenReady().then(() => {
     startInputHook();
     startPlayClock();
     startAutoUpdater();
+
+    dailyRace.start();
+    refreshTray();
 
     const startupLink = process.argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
     const startupCode = pendingDeepLink || parseDeepLink(startupLink);

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'">
+    <title>Daily Race Podium</title>
+    <link rel="stylesheet" href="overlay.css">
+    <link rel="stylesheet" href="podium.css">
+</head>
+<body>
+    <div class="card">
+        <div id="confetti" class="confetti"></div>
+        <div class="title">🏁 Daily Race</div>
+        <div id="subtitle" class="subtitle"></div>
+        <div class="podium">
+            <div class="place p2" data-place="2"></div>
+            <div class="place p1" data-place="1"></div>
+            <div class="place p3" data-place="3"></div>
+        </div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <template id="champ-template">
+        <div class="champ">
+            <div class="count">0</div>
+            <div class="stage">
+                <div class="part head"></div>
+                <div class="part hat hidden"></div>
+                <div class="part arm left up"></div>
+                <div class="part arm right up"></div>
+                <div class="emoji-bubble hidden"></div>
+            </div>
+            <div class="name"></div>
+        </div>
+    </template>
+
+    <script src="champ.js"></script>
+    <script src="overlay-common.js"></script>
+    <script src="podium.js"></script>
+</body>
+</html>

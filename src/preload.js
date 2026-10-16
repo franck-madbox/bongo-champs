@@ -2,7 +2,7 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
-const LISTENED_CHANNELS = ['tap', 'release', 'session', 'peer-update', 'peer-emoji', 'profile', 'permission', 'session-error'];
+const LISTENED_CHANNELS = ['tap', 'release', 'session', 'peer-update', 'peer-emoji', 'profile', 'permission', 'session-error', 'race', 'podium'];
 
 contextBridge.exposeInMainWorld('bongo', {
     getState: () => ipcRenderer.invoke('get-state'),

@@ -3,6 +3,8 @@
 // Same message protocol as server/server.js. Only counts, hats and emoji reactions are transmitted: no key codes, no text.
 
 import { DurableObject } from 'cloudflare:workers';
+import { raceClock } from '../../src/race-time.js';
+import { applyRaceMessage, removeRacer, standingsMessage, serializeBoard, deserializeBoard } from '../../src/race-board.js';
 
 const MAX_PLAYERS_PER_ROOM = 16;
 const MAX_TAPS_PER_UPDATE = 100;
@@ -13,6 +15,10 @@ const HAT_ID_REGEX = /^[a-z0-9-]{1,32}$/;
 const LEGACY_EMOJIS = ['😂', '🔥', '👍', '❤️', '😮', '🎉', '💀', '👋'];
 const MOJI_ID_REGEX = /^[a-z0-9-]{1,32}$/;
 const EMOJI_COOLDOWN_MS = 1500;
+// Daily race: one Durable Object for everyone. Saved at most once per RACE_SAVE_MS (free-plan write quota);
+// clients re-send their score regularly, so a restart loses nothing.
+const RACE_SAVE_MS = 60 * 1000;
+const RACE_BROADCAST_MS = 2000;
 
 export default {
     async fetch(request, env) {
@@ -20,6 +26,13 @@ export default {
 
         if (url.pathname === '/health') {
             return Response.json({ ok: true });
+        }
+
+        if (url.pathname === '/race') {
+            if (request.headers.get('Upgrade') !== 'websocket') {
+                return new Response('Expected a WebSocket upgrade', { status: 426 });
+            }
+            return env.RACE.get(env.RACE.idFromName('global')).fetch(request);
         }
 
         const match = ROOM_PATH_REGEX.exec(url.pathname);
@@ -205,5 +218,120 @@ export class Room extends DurableObject {
 
     async webSocketError(ws) {
         this.leave(ws);
+    }
+}
+
+/** Public id broadcast in standings: a hash, so the private id stays secret. Same as server/server.js. */
+async function publicRaceId(privateId) {
+    const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(privateId));
+    return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 16);
+}
+
+/** The daily race board shared by all Madbox players. */
+export class Race extends DurableObject {
+    constructor(ctx, env) {
+        super(ctx, env);
+        this.board = deserializeBoard(null);
+        this.lastBroadcast = 0;
+        this.broadcastTimer = null;
+        ctx.blockConcurrencyWhile(async () => {
+            this.board = deserializeBoard(await ctx.storage.get('board'));
+        });
+    }
+
+    async fetch() {
+        const pair = new WebSocketPair();
+        const [client, server] = Object.values(pair);
+        this.ctx.acceptWebSocket(server);
+        server.serializeAttachment({ privateId: null, publicId: null });
+        return new Response(null, { status: 101, webSocket: client });
+    }
+
+    send(ws, message) {
+        try {
+            ws.send(JSON.stringify(message));
+        } catch {
+            // Socket already closing: ignore.
+        }
+    }
+
+    broadcast() {
+        clearTimeout(this.broadcastTimer);
+        this.broadcastTimer = null;
+        this.lastBroadcast = Date.now();
+        const payload = standingsMessage(this.board, raceClock());
+        for (const ws of this.ctx.getWebSockets()) {
+            this.send(ws, payload);
+        }
+    }
+
+    /** At most one standings broadcast every RACE_BROADCAST_MS, the latest state always goes out. */
+    scheduleBroadcast() {
+        const wait = RACE_BROADCAST_MS - (Date.now() - this.lastBroadcast);
+        if (wait <= 0) {
+            this.broadcast();
+        } else if (!this.broadcastTimer) {
+            this.broadcastTimer = setTimeout(() => this.broadcast(), wait);
+        }
+    }
+
+    async scheduleSave() {
+        if ((await this.ctx.storage.getAlarm()) === null) {
+            await this.ctx.storage.setAlarm(Date.now() + RACE_SAVE_MS);
+        }
+    }
+
+    async alarm() {
+        await this.ctx.storage.put('board', serializeBoard(this.board));
+    }
+
+    async webSocketMessage(ws, raw) {
+        let msg;
+        try {
+            msg = JSON.parse(typeof raw === 'string' ? raw : new TextDecoder().decode(raw));
+        } catch {
+            return;
+        }
+        const clock = raceClock();
+        if (msg.t === 'race-get') {
+            this.send(ws, standingsMessage(this.board, clock));
+            return;
+        }
+        let attachment = ws.deserializeAttachment();
+        if (msg.t === 'race-leave') {
+            if (attachment.privateId && removeRacer(this.board, attachment.privateId)) {
+                await this.scheduleSave();
+                this.scheduleBroadcast();
+            }
+            return;
+        }
+        if (msg.t !== 'race-join' && msg.t !== 'race-update') {
+            return;
+        }
+        if (msg.t === 'race-join') {
+            const privateId = String(msg.id || '').slice(0, 64);
+            if (!privateId) {
+                return;
+            }
+            attachment = { privateId, publicId: await publicRaceId(privateId) };
+            ws.serializeAttachment(attachment);
+        }
+        if (!attachment.privateId) {
+            return;
+        }
+        applyRaceMessage(this.board, attachment.privateId, attachment.publicId, msg, clock);
+        await this.scheduleSave();
+        if (msg.t === 'race-join') {
+            this.send(ws, standingsMessage(this.board, clock));
+        }
+        this.scheduleBroadcast();
+    }
+
+    async webSocketClose(ws) {
+        try {
+            ws.close(1000, 'bye');
+        } catch {
+            // Already closed.
+        }
     }
 }

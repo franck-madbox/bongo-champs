@@ -1,0 +1,139 @@
+/* Daily race strip: a click-through vertical track on the right edge of the screen. */
+
+html, body {
+    width: 100%;
+    height: 100%;
+    cursor: default;
+}
+
+/* Shared cartoon outline for text drawn over any wallpaper. */
+.finish-label, .countdown, .info {
+    color: #fff;
+    text-shadow:
+        -1.5px -1.5px 0 #111, 0 -1.5px 0 #111, 1.5px -1.5px 0 #111, 1.5px 0 0 #111,
+        1.5px 1.5px 0 #111, 0 1.5px 0 #111, -1.5px 1.5px 0 #111, -1.5px 0 0 #111;
+}
+
+/* ---------- Finish line ---------- */
+
+.finish {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    text-align: center;
+}
+
+.checkers {
+    height: 14px;
+    border: 2px solid #111;
+    border-radius: 4px;
+    background: repeating-conic-gradient(#111 0 25%, #fff 0 50%) 0 0 / 14px 14px;
+}
+
+.finish-label {
+    margin-top: 4px;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.countdown {
+    font-size: 11px;
+    font-weight: 800;
+}
+
+.countdown.closed {
+    color: #ffcc33;
+    font-size: 13px;
+}
+
+/* ---------- Track ---------- */
+
+.track {
+    position: absolute;
+    top: 78px;
+    bottom: 24px;
+    left: 34px;
+    width: 0;
+    border-left: 4px dashed rgba(255, 255, 255, 0.55);
+    filter: drop-shadow(0 0 1px #111);
+}
+
+/* ---------- Runners ---------- */
+
+.runner {
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    transition: top 0.9s cubic-bezier(0.3, 1.3, 0.5, 1);
+}
+
+/* Mini Champ: the overlay rig, scaled down, without its counter and name tag. */
+.mini {
+    flex: 0 0 62px;
+    display: flex;
+    align-items: flex-end;
+    height: 52px;
+}
+
+.mini .champ {
+    zoom: 0.25;
+}
+
+.mini .count,
+.mini .name,
+.mini .emoji-bubble {
+    display: none;
+}
+
+.info {
+    min-width: 0;
+    line-height: 1.1;
+}
+
+.rank {
+    display: inline-block;
+    padding: 0 4px;
+    border: 1.5px solid #111;
+    border-radius: 5px;
+    background: #3a4258;
+    font-size: 10px;
+    font-weight: 900;
+    text-shadow: none;
+}
+
+.rank.r1 { background: #ffcc33; color: #111; }
+.rank.r2 { background: #d6dde8; color: #111; }
+.rank.r3 { background: #e0955a; color: #111; }
+
+.taps {
+    font-size: 13px;
+    font-weight: 900;
+    font-variant-numeric: tabular-nums;
+}
+
+.who {
+    font-size: 10px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 66px;
+}
+
+/* The local player stands out. */
+.runner.me .mini {
+    filter: drop-shadow(0 0 4px #ff9d2e) drop-shadow(0 0 2px #ff9d2e);
+}
+
+.runner.me .who {
+    color: #ff9d2e;
+}
+
+.countdown.next-race {
+    font-size: 10px;
+    color: #c8cfdd;
+}

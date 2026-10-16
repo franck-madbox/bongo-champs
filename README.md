@@ -24,6 +24,10 @@ Install once: next versions download in the background and a green **Update** bu
   (keys + clicks; the displayed counter never goes down). Capsules open in Settings > Hats or Settings > Mojis.
   Hats: Common 60%, Rare 28%, Epic 10%, Legendary 2%. Mojis: all equal. Never a duplicate.
   Your worn hat is visible to friends.
+- **Daily race**: everyone at Madbox races on today's taps. A click-through track on the right edge of the screen shows
+  the top 8 mini Champs (plus you) climbing towards the 🏁 finish. Taps count from midnight to **18:00 Paris time**;
+  at 18:00 a podium pops up and the top 3 win **3 / 2 / 1 capsules**. A new race starts at midnight.
+  Menu > *Daily race* hides or shows the track.
 - **macOS:** the first launch asks for **Accessibility** access (System Settings > Privacy & Security > Accessibility). It's required to count keys and clicks in other apps.
 
 ## Develop
